@@ -1,34 +1,36 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
-func middlewareCors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS,PUT,DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
+	const rootFilePath = "."
+	const port = ":8080"
+	//
 	mux := http.NewServeMux()
+	// handling different urls
+	apiCfg := &apiConfig{
+		fileServerHits: 0,
+	}
+	metricsHandler := http.FileServer(http.Dir(rootFilePath))
+	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", metricsHandler)))
+	mux.Handle("/assets/logo", http.FileServer(http.Dir("./assets")))
+	mux.HandleFunc("/healthz", handleReadiness)
+	mux.HandleFunc("/metrics", apiCfg.HandleMetrics)
+
 	corsMux := middlewareCors(mux)
 
-	server := http.Server{
+	// different features of url
+	srv := &http.Server{
+		Addr:    port,
 		Handler: corsMux,
 	}
-	mux.Handle("/", http.FileServer(http.Dir(".")))
-	server.Addr = ":8080"
-	err := server.ListenAndServe()
+	log.Printf("Serving on port: %s", port)
+	err := srv.ListenAndServe()
 	if err != nil {
-		fmt.Println("Error Startng server: ", err)
+		log.Fatal("Error Startng server: ", err)
 	}
+
 }
