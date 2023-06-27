@@ -3,24 +3,27 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
 	const rootFilePath = "."
 	const port = ":8080"
 	//
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 	// handling different urls
 	apiCfg := &apiConfig{
 		fileServerHits: 0,
 	}
-	metricsHandler := http.FileServer(http.Dir(rootFilePath))
-	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", metricsHandler)))
-	mux.Handle("/assets/logo", http.FileServer(http.Dir("./assets")))
-	mux.HandleFunc("/healthz", handleReadiness)
-	mux.HandleFunc("/metrics", apiCfg.HandleMetrics)
+	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(rootFilePath))))
+	r.Handle("/app/*", fsHandler)
+	r.Handle("/app", fsHandler)
+	r.Handle("/assets/logo", http.FileServer(http.Dir("./assets")))
+	r.Get("/healthz", handleReadiness)
+	r.Get("/metrics", apiCfg.HandleMetrics)
 
-	corsMux := middlewareCors(mux)
+	corsMux := middlewareCors(r)
 
 	// different features of url
 	srv := &http.Server{
