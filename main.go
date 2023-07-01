@@ -10,25 +10,30 @@ import (
 func main() {
 	const rootFilePath = "."
 	const port = ":8080"
-	//
-	r := chi.NewRouter()
+	// main router
+	router := chi.NewRouter()
 	// handling different urls
 	apiCfg := &apiConfig{
 		fileServerHits: 0,
 	}
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(rootFilePath))))
-	r.Handle("/app/*", fsHandler)
-	r.Handle("/app", fsHandler)
-	r.Handle("/assets/logo", http.FileServer(http.Dir("./assets")))
+	router.Handle("/app/*", fsHandler)
+	router.Handle("/app", fsHandler)
+	router.Handle("/assets/logo", http.FileServer(http.Dir("./assets")))
 
 	// apiRouter
 	apiRouter := chi.NewRouter()
 
 	apiRouter.Get("/healthz", handleReadiness)
-	apiRouter.Get("/metrics", apiCfg.HandleMetrics)
-	r.Mount("/api", apiRouter)
+	// apiRouter.Get("/metrics", apiCfg.HandleMetrics)
+	router.Mount("/api", apiRouter)
 
-	corsMux := middlewareCors(r)
+	// adminRouter
+	adminRouter := chi.NewRouter()
+	adminRouter.Get("/metrics", apiCfg.HandleMetrics)
+	router.Mount("/admin", adminRouter)
+
+	corsMux := middlewareCors(router)
 
 	// different features of url
 	srv := &http.Server{
