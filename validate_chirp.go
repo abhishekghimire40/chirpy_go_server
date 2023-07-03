@@ -1,11 +1,13 @@
-package database
+package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
+
+	"github.com/abhishekghimire40/chirpy_go_server/database"
 )
 
 type errorMsg struct {
@@ -13,14 +15,14 @@ type errorMsg struct {
 }
 
 // function to process get request to get all the chirps present in the database
-func GetAllChirps(db *DB) http.HandlerFunc {
+func GetAllChirps(db *database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		db.mux.RLock()
 		chirps, err := db.GetChirps()
-		db.mux.RUnlock()
 		if err != nil {
 			log.Fatal(err)
 		}
+		// sorting the chirps according to its id
+		sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
 		setResponse(w, http.StatusOK, chirps)
 	}
 }
@@ -29,11 +31,11 @@ func GetAllChirps(db *DB) http.HandlerFunc {
 function to validate the incoming chirp from a  Post request, save the chirp
 if it  is valid and return with a response of that chirp
 */
-func ValidateChirp(db *DB) http.HandlerFunc {
+func ValidateChirp(db *database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// decoding the json request
 		decoder := json.NewDecoder(r.Body)
-		chirpBody := Chirp{}
+		chirpBody := database.Chirp{}
 		err := decoder.Decode(&chirpBody)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Something went wrong")
@@ -50,25 +52,6 @@ func ValidateChirp(db *DB) http.HandlerFunc {
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "new chirp cannot be created")
 			return
-		}
-		// ensure that the database is present
-		db.mux.RLock()
-		db.ensureDB()
-		// load data from our database to add the new chirp to our db
-		allChirps, err := db.loadDB()
-		db.mux.RUnlock()
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "previous chirps cannot be laoded!")
-			return
-		}
-		// add the new chirp to the database
-		allChirps.Chirps[newChirp.Id] = newChirp
-		// save updated chirps to our database
-		db.mux.Lock()
-		err = db.writeDB(allChirps)
-		db.mux.Unlock()
-		if err != nil {
-			fmt.Println("Error while writing file: ", err)
 		}
 		setResponse(w, 201, newChirp)
 	}

@@ -37,8 +37,8 @@ func main() {
 	apiRouter := chi.NewRouter()
 
 	apiRouter.Get("/healthz", handleReadiness)
-	apiRouter.Post("/chirps", database.ValidateChirp(db))
-	apiRouter.Get("/chirps", database.GetAllChirps(db))
+	apiRouter.Post("/chirps", ValidateChirp(db))
+	apiRouter.Get("/chirps", GetAllChirps(db))
 	router.Mount("/api", apiRouter)
 
 	// adminRouter

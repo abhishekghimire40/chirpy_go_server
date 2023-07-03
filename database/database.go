@@ -33,19 +33,31 @@ func NewDB(path string) (*DB, error) {
 
 // CreateChirp creates a new chirp and saves it to disk
 func (db *DB) CreateChirp(body string) (Chirp, error) {
+
 	chirpsData, err := db.loadDB()
+
 	if err != nil {
 		return Chirp{}, err
 	}
-	return Chirp{
+	newChirp := Chirp{
 		Id:   len(chirpsData.Chirps) + 1,
 		Body: body,
-	}, nil
+	}
+	// add the new chirp to the database
+	chirpsData.Chirps[newChirp.Id] = newChirp
+	// save updated chirps to our database
+	err = db.writeDB(chirpsData)
+	if err != nil {
+		return Chirp{}, err
+	}
+	return newChirp, nil
 }
 
 // GetChirps returns all chirps in the database
 func (db *DB) GetChirps() ([]Chirp, error) {
+
 	data, err := db.loadDB()
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,15 +74,17 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirpData, nil
 }
 
+// function to create a database
+func (db *DB) createDB() error {
+	dbStructure := DBStructure{Chirps: make(map[int]Chirp)}
+	return db.writeDB(dbStructure)
+}
+
 // ensureDB creates a new database file if it doesn't exist
 func (db *DB) ensureDB() error {
 	_, err := os.Stat(db.path)
 	if errors.Is(err, os.ErrNotExist) {
-		file, err := os.Create(db.path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer file.Close()
+		db.createDB()
 	}
 	return nil
 }
@@ -78,20 +92,22 @@ func (db *DB) ensureDB() error {
 // loadDB reads the database file into memory
 func (db *DB) loadDB() (DBStructure, error) {
 	// read json file
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+	response := DBStructure{}
 	jsonData, err := os.ReadFile(db.path)
 	if err != nil {
-		log.Fatal(err)
+		return response, err
 	}
 	// check if the database is empty
 	if len(jsonData) == 0 {
-
-		return DBStructure{Chirps: make(map[int]Chirp)}, nil
+		return response, nil
 	}
 	// parse jsonfile
-	response := DBStructure{}
+
 	err = json.Unmarshal(jsonData, &response)
 	if err != nil {
-		log.Fatal(err)
+		return response, err
 	}
 
 	return response, nil
@@ -99,6 +115,8 @@ func (db *DB) loadDB() (DBStructure, error) {
 
 // writeDB writes the database file into disk
 func (db *DB) writeDB(dbStructure DBStructure) error {
+	db.mux.Lock()
+	defer db.mux.Unlock()
 	updatedData, err := json.MarshalIndent(dbStructure, "", "\t")
 	if err != nil {
 		return err
