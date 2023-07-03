@@ -3,7 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
+	"github.com/abhishekghimire40/chirpy_go_server/database"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -12,6 +15,15 @@ func main() {
 	const port = ":8080"
 	// main router
 	router := chi.NewRouter()
+
+	// creating a new database connection
+	rootDir, _ := os.Getwd()
+
+	filepath := filepath.Join(rootDir, "database.json")
+	db, err := database.NewDB(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// handling different urls
 	apiCfg := &apiConfig{
 		fileServerHits: 0,
@@ -25,7 +37,8 @@ func main() {
 	apiRouter := chi.NewRouter()
 
 	apiRouter.Get("/healthz", handleReadiness)
-	apiRouter.Post("/validate_chirp", validateChirp)
+	apiRouter.Post("/chirps", database.ValidateChirp(db))
+	apiRouter.Get("/chirps", database.GetAllChirps(db))
 	router.Mount("/api", apiRouter)
 
 	// adminRouter
@@ -41,9 +54,8 @@ func main() {
 		Handler: corsMux,
 	}
 	log.Printf("Serving on port: %s", port)
-	err := srv.ListenAndServe()
-	if err != nil {
+	err1 := srv.ListenAndServe()
+	if err1 != nil {
 		log.Fatal("Error Startng server: ", err)
 	}
-
 }
