@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/abhishekghimire40/chirpy_go_server/database"
+	"github.com/go-chi/chi/v5"
 )
 
 type errorMsg struct {
@@ -25,6 +27,13 @@ func GetAllChirps(db *database.DB) http.HandlerFunc {
 		sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
 		setResponse(w, http.StatusOK, chirps)
 	}
+}
+
+// function to sort our chirps
+func sortChirps(chirps []database.Chirp) []database.Chirp {
+	sorted := chirps
+	sort.Slice(sorted, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
+	return sorted
 }
 
 /*
@@ -96,4 +105,35 @@ func setResponse(w http.ResponseWriter, code int, res interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(dat)
+}
+
+// request handlerFunc for /api/chirps/{chirpID}
+func GetSingleChirp(db *database.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// get chirpID from url and convert it into int
+		id, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
+		if err != nil {
+			setResponse(w, 404, errorMsg{
+				Error: "Provide Valid ChirpID",
+			})
+			return
+		}
+		// get all chirps from database
+		data, errD := db.GetChirps()
+		if errD != nil {
+			setResponse(w, 404, errorMsg{
+				Error: "Error",
+			})
+			return
+		}
+		// check if chirp is available or not
+		if len(data) < id {
+			setResponse(w, 404, errorMsg{
+				Error: "chirp with provided id not available",
+			})
+			return
+		}
+		sortedData := sortChirps(data)
+		setResponse(w, 200, sortedData[id-1])
+	}
 }

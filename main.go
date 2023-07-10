@@ -39,6 +39,7 @@ func main() {
 	apiRouter.Get("/healthz", handleReadiness)
 	apiRouter.Post("/chirps", ValidateChirp(db))
 	apiRouter.Get("/chirps", GetAllChirps(db))
+	apiRouter.Get("/chirps/{chirpID}", GetSingleChirp(db))
 	router.Mount("/api", apiRouter)
 
 	// adminRouter

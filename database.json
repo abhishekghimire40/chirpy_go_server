@@ -2,11 +2,11 @@
 	"chirps": {
 		"1": {
 			"id": 1,
-			"body": "First chirp here"
+			"body": "I had something interesting for breakfast"
 		},
 		"2": {
 			"id": 2,
-			"body": "Second one incoming"
+			"body": "What about second breakfast?"
 		}
 	}
 }
