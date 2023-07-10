@@ -36,10 +36,15 @@ func main() {
 	// apiRouter
 	apiRouter := chi.NewRouter()
 
+	// chirps api endpoints
 	apiRouter.Get("/healthz", handleReadiness)
 	apiRouter.Post("/chirps", ValidateChirp(db))
 	apiRouter.Get("/chirps", GetAllChirps(db))
 	apiRouter.Get("/chirps/{chirpID}", GetSingleChirp(db))
+
+	// users api endpoint
+	apiRouter.Post("/users", CreateUser(db))
+
 	router.Mount("/api", apiRouter)
 
 	// adminRouter
