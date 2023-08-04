@@ -9,6 +9,12 @@ import (
 )
 
 type User struct {
+	Id       int `json:"id"`
+	Password string
+	Email    string `json:"email"`
+}
+
+type PublicUser struct {
 	Id    int    `json:"id"`
 	Email string `json:"email"`
 }
@@ -24,8 +30,8 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users  map[int]User  `json:"users"`
+	Chirps map[int]Chirp   `json:"chirps"`
+	Users  map[string]User `json:"users"`
 }
 
 func NewDB(path string) (*DB, error) {
@@ -38,21 +44,32 @@ func NewDB(path string) (*DB, error) {
 }
 
 // CreateUser creates a new user and saves it to our database
-func (db *DB) CreateUser(body string) (User, error) {
+func (db *DB) CreateUser(email string, password string) (PublicUser, error) {
+	// load all user data from database.json file
 	userData, err := db.loadDB()
 	if err != nil {
-		return User{}, err
+		return PublicUser{}, err
 	}
+	// check if user with provided email already exists
+	_, exist := db.GetUser(email)
+	if exist {
+		return PublicUser{}, errors.New("User with provided email already exists")
+	}
+	// create new user
 	newUser := User{
-		Id:    len(userData.Users) + 1,
-		Email: body,
+		Id:       len(userData.Users) + 1,
+		Email:    email,
+		Password: password,
 	}
-	userData.Users[newUser.Id] = newUser
+	userData.Users[newUser.Email] = newUser
 	err = db.writeDB(userData)
 	if err != nil {
-		return User{}, err
+		return PublicUser{}, err
 	}
-	return newUser, nil
+	return PublicUser{
+		Id:    newUser.Id,
+		Email: newUser.Email,
+	}, nil
 }
 
 // CreateChirp creates a new chirp and saves it to disk
@@ -98,9 +115,22 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirpData, nil
 }
 
+// function to get a user info by its email
+func (db *DB) GetUser(email string) (User, bool) {
+	data, err := db.loadDB()
+	if err != nil {
+		return User{}, false
+	}
+	user, exist := data.Users[email]
+	if !exist {
+		return User{}, false
+	}
+	return user, exist
+}
+
 // function to create a database
 func (db *DB) createDB() error {
-	dbStructure := DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User)}
+	dbStructure := DBStructure{Chirps: make(map[int]Chirp), Users: make(map[string]User)}
 	return db.writeDB(dbStructure)
 }
 

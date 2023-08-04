@@ -44,6 +44,7 @@ func main() {
 
 	// users api endpoint
 	apiRouter.Post("/users", CreateUser(db))
+	apiRouter.Post("/login", loginUser(db))
 
 	router.Mount("/api", apiRouter)
 
