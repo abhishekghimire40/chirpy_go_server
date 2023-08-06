@@ -9,6 +9,7 @@ import (
 // apiConfig struct for counting number of times a certain path is called in api
 type apiConfig struct {
 	fileServerHits int
+	jwtSecret      string
 	hitsMutex      sync.Mutex
 }
 

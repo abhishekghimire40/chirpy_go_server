@@ -6,13 +6,22 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/abhishekghimire40/chirpy_go_server/database"
+	"github.com/abhishekghimire40/chirpy_go_server/internal/database"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	const rootFilePath = "."
 	const port = ":8080"
+	// loadenv file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading env file!")
+	}
+	// jwt secret key
+	jwt_secret := os.Getenv("JWT_SECRET")
 	// main router
 	router := chi.NewRouter()
 
@@ -27,6 +36,7 @@ func main() {
 	// handling different urls
 	apiCfg := &apiConfig{
 		fileServerHits: 0,
+		jwtSecret:      jwt_secret,
 	}
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(rootFilePath))))
 	router.Handle("/app/*", fsHandler)
@@ -43,8 +53,9 @@ func main() {
 	apiRouter.Get("/chirps/{chirpID}", GetSingleChirp(db))
 
 	// users api endpoint
-	apiRouter.Post("/users", CreateUser(db))
+	apiRouter.Post("/users", createUser(db))
 	apiRouter.Post("/login", loginUser(db))
+	apiRouter.Put("/users", updateUser(db))
 
 	router.Mount("/api", apiRouter)
 

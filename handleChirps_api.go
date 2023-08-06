@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/abhishekghimire40/chirpy_go_server/database"
+	"github.com/abhishekghimire40/chirpy_go_server/internal/database"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -83,28 +83,6 @@ func removeProfanedWords(str string) string {
 	}
 	finalString := strings.Join(splittedString, " ")
 	return finalString
-}
-
-// function to response if any error occurs
-func respondWithError(w http.ResponseWriter, code int, errMsg string) {
-
-	newErr := errorMsg{
-		Error: errMsg,
-	}
-	setResponse(w, code, newErr)
-}
-
-// function to set response
-func setResponse(w http.ResponseWriter, code int, res interface{}) {
-	dat, err := json.Marshal(res)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(dat)
 }
 
 // request handlerFunc for /api/chirps/{chirpID}
