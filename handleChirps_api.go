@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -20,12 +19,32 @@ type errorMsg struct {
 // function to process get request to get all the chirps present in the database
 func GetAllChirps(db *database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		chirps, err := db.GetChirps()
+		author_id := r.URL.Query().Get("author_id")
+		sort_order := r.URL.Query().Get("sort")
+		var chirps []database.Chirp
+		var err error
+		if len(author_id) != 0 {
+			user_id, convErr := strconv.Atoi(author_id)
+			if convErr != nil {
+				respondWithError(w, 404, "Bad request")
+				return
+			}
+			chirps, err = db.GetChirpsByID(user_id)
+		} else {
+			chirps, err = db.GetChirps()
+		}
 		if err != nil {
-			log.Fatal(err)
+			respondWithError(w, 500, "internal server error")
+			return
 		}
 		// sorting the chirps according to its id
-		sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
+		if sort_order == "asc" {
+			sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
+		} else if sort_order == "desc" {
+			sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id > chirps[j].Id })
+		} else {
+			sort.Slice(chirps, func(i, j int) bool { return chirps[i].Id < chirps[j].Id })
+		}
 		setResponse(w, http.StatusOK, chirps)
 	}
 }
@@ -44,6 +63,7 @@ if it  is valid and return with a response of that chirp
 func ValidateChirp(db *database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// decoding the json request
+
 		decoder := json.NewDecoder(r.Body)
 		chirpBody := database.Chirp{}
 		err := decoder.Decode(&chirpBody)

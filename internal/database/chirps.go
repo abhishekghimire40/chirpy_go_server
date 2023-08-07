@@ -2,7 +2,6 @@ package database
 
 import (
 	"errors"
-	"log"
 )
 
 type Chirp struct {
@@ -40,7 +39,7 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	data, err := db.loadDB()
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	chirpData := make([]Chirp, 0)
 
@@ -54,6 +53,21 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	}
 
 	return chirpData, nil
+}
+
+// function to return get chirps by author_id
+func (db *DB) GetChirpsByID(user_id int) ([]Chirp, error) {
+	data, err := db.loadDB()
+	if err != nil {
+		return nil, err
+	}
+	chirpsData := make([]Chirp, 0)
+	for _, val := range data.Chirps {
+		if val.Author_Id == user_id {
+			chirpsData = append(chirpsData, val)
+		}
+	}
+	return chirpsData, nil
 }
 
 // method to delete chirps
