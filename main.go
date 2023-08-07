@@ -51,11 +51,15 @@ func main() {
 	apiRouter.Post("/chirps", ValidateChirp(db))
 	apiRouter.Get("/chirps", GetAllChirps(db))
 	apiRouter.Get("/chirps/{chirpID}", GetSingleChirp(db))
+	apiRouter.Delete("/chirps/{chirpID}", deleteChirp(db))
 
 	// users api endpoint
 	apiRouter.Post("/users", createUser(db))
 	apiRouter.Post("/login", loginUser(db))
 	apiRouter.Put("/users", updateUser(db))
+	// refresh token
+	apiRouter.Post("/refresh", refreshToken(db))
+	apiRouter.Post("/revoke", revokeToken(db))
 
 	router.Mount("/api", apiRouter)
 

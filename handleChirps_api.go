@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/abhishekghimire40/chirpy_go_server/internal/auth"
 	"github.com/abhishekghimire40/chirpy_go_server/internal/database"
 	"github.com/go-chi/chi/v5"
 )
@@ -56,8 +57,31 @@ func ValidateChirp(db *database.DB) http.HandlerFunc {
 			return
 		}
 		chirpBody.Body = removeProfanedWords(chirpBody.Body)
+
+		// validate user with jwt
+		tokenString, err := getTokenString(r)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		token, err := auth.ValidateJwtToken(tokenString)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+
+		claims, err := auth.GetTokenClaims(token)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		user_id, err := strconv.Atoi(claims.Subject)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
 		// create a new chirp with id
-		newChirp, err := db.CreateChirp(chirpBody.Body)
+		newChirp, err := db.CreateChirp(chirpBody.Body, user_id)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "new chirp cannot be created")
 			return
@@ -97,8 +121,8 @@ func GetSingleChirp(db *database.DB) http.HandlerFunc {
 			return
 		}
 		// get all chirps from database
-		data, errD := db.GetChirps()
-		if errD != nil {
+		data, err := db.GetChirps()
+		if err != nil {
 			setResponse(w, 404, errorMsg{
 				Error: "Error",
 			})
@@ -113,5 +137,45 @@ func GetSingleChirp(db *database.DB) http.HandlerFunc {
 		}
 		sortedData := sortChirps(data)
 		setResponse(w, 200, sortedData[id-1])
+	}
+}
+
+// function to handle deleting a chirp
+func deleteChirp(db *database.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// validate
+		tokenString, err := getTokenString(r)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		token, err := auth.ValidateJwtToken(tokenString)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		claims, err := auth.GetTokenClaims(token)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		user_id, err := strconv.Atoi(claims.Subject)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+
+		// get chirp from database
+		chirp_id, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
+		if err != nil {
+			respondWithError(w, 401, "Provide valid ChirpID")
+			return
+		}
+		statusCode, err := db.DeleteChirp(chirp_id, user_id)
+		if err != nil {
+			respondWithError(w, statusCode, err.Error())
+			return
+		}
+		setResponse(w, statusCode, nil)
 	}
 }

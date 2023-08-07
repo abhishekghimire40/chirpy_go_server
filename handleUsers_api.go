@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/abhishekghimire40/chirpy_go_server/internal/auth"
@@ -10,9 +12,15 @@ import (
 )
 
 type RequestBody struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	ExpiresAt int    `json:"expires_in_seconds"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UserResponse struct {
+	Id            int    `json:"id"`
+	Email         string `json:"email"`
+	Token         string `json:"token"`
+	Refresh_Token string `json:"refresh_token"`
 }
 
 func createUser(db *database.DB) http.HandlerFunc {
@@ -53,23 +61,34 @@ func loginUser(db *database.DB) http.HandlerFunc {
 			respondWithError(w, 401, "Unauthorized")
 			return
 		}
-		userResponse := struct {
-			Id    int    `json:"id"`
-			Email string `json:"email"`
-			Token string `json:"token"`
-		}{
+		userResponse := UserResponse{
 			Id:    user.Id,
 			Email: user.Email,
 		}
-		token, err := auth.GenerateJwtToken(userBody.ExpiresAt, userResponse.Id)
+		access_token, err := auth.GenerateJwtToken("access", userResponse.Id)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
-		userResponse.Token = token
+		refresh_token, err := auth.GenerateJwtToken("refresh", userResponse.Id)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "internal server error")
+		}
+		userResponse.Token = access_token
+		userResponse.Refresh_Token = refresh_token
+
 		setResponse(w, 200, userResponse)
 
 	}
+}
+
+func getTokenString(r *http.Request) (string, error) {
+	tokenString := r.Header.Get("Authorization")
+	if len(tokenString) == 0 {
+		return "", errors.New("token not provided")
+	}
+	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer"))
+	return tokenString, nil
 }
 
 func updateUser(db *database.DB) http.HandlerFunc {
@@ -79,18 +98,30 @@ func updateUser(db *database.DB) http.HandlerFunc {
 		err := decoder.Decode(&requestData)
 		if err != nil {
 			respondWithError(w, 404, "Invalid request body")
+			return
 		}
-		tokenString := r.Header.Get("Authorization")
-		if len(tokenString) == 0 {
+		tokenString, err := getTokenString(r)
+		if err != nil {
 			respondWithError(w, 401, "Unauthorized")
 			return
 		}
-		tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer"))
-		id, err := auth.ValidateJwtToken(tokenString)
+		token, err := auth.ValidateJwtToken(tokenString)
 		if err != nil {
 			respondWithError(w, 401, err.Error())
 			return
 		}
+		claims, err := auth.GetTokenClaims(token)
+		if err != nil {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		id, _ := strconv.Atoi(claims.Subject)
+		issuer := claims.Issuer
+		if issuer != "chirpy-access" {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+
 		hashedPassword, err := auth.HashPassword(requestData.Password)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "internal server error")

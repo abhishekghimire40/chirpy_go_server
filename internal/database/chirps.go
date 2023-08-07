@@ -1,14 +1,18 @@
 package database
 
-import "log"
+import (
+	"errors"
+	"log"
+)
 
 type Chirp struct {
-	Id   int    `json:"id"`
-	Body string `json:"body"`
+	Id        int    `json:"id"`
+	Body      string `json:"body"`
+	Author_Id int    `json:"author_id"`
 }
 
 // CreateChirp creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, user_id int) (Chirp, error) {
 
 	chirpsData, err := db.loadDB()
 
@@ -16,8 +20,9 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 		return Chirp{}, err
 	}
 	newChirp := Chirp{
-		Id:   len(chirpsData.Chirps) + 1,
-		Body: body,
+		Id:        len(chirpsData.Chirps) + 1,
+		Body:      body,
+		Author_Id: user_id,
 	}
 	// add the new chirp to the database
 	chirpsData.Chirps[newChirp.Id] = newChirp
@@ -41,11 +46,30 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 
 	for _, val := range data.Chirps {
 		newChirp := Chirp{
-			Id:   val.Id,
-			Body: val.Body,
+			Id:        val.Id,
+			Body:      val.Body,
+			Author_Id: val.Author_Id,
 		}
 		chirpData = append(chirpData, newChirp)
 	}
 
 	return chirpData, nil
+}
+
+// method to delete chirps
+func (db *DB) DeleteChirp(chirp_id int, user_id int) (int, error) {
+	data, err := db.loadDB()
+	if err != nil {
+		return 500, errors.New("internal server error")
+	}
+	chirp_data, ok := data.Chirps[chirp_id]
+	if !ok {
+		return 403, errors.New("chirp with provided id not available")
+	}
+	if chirp_data.Author_Id != user_id {
+		return 403, errors.New("couldn't delete chirp as you are not owner of the chirp")
+	}
+	delete(data.Chirps, chirp_id)
+	db.writeDB(data)
+	return 200, nil
 }
