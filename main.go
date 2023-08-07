@@ -57,6 +57,8 @@ func main() {
 	apiRouter.Post("/users", createUser(db))
 	apiRouter.Post("/login", loginUser(db))
 	apiRouter.Put("/users", updateUser(db))
+	// webhooks to determine user is upgraded to premium or not
+	apiRouter.Post("/polka/webhooks", upgradeUser(db))
 	// refresh token
 	apiRouter.Post("/refresh", refreshToken(db))
 	apiRouter.Post("/revoke", revokeToken(db))

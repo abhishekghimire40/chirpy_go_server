@@ -7,14 +7,16 @@ import (
 )
 
 type User struct {
-	Id       int `json:"id"`
-	Password string
-	Email    string `json:"email"`
+	Id            int    `json:"id"`
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	Is_Chirpy_Red bool   `json:"is_chirpy_red"`
 }
 
 type PublicUser struct {
-	Id    int    `json:"id"`
-	Email string `json:"email"`
+	Id            int    `json:"id"`
+	Email         string `json:"email"`
+	Is_Chirpy_Red bool   `json:"is_chirpy_red"`
 }
 
 // CreateUser creates a new user and saves it to our database
@@ -38,9 +40,10 @@ func (db *DB) CreateUser(email string, password string) (PublicUser, error) {
 
 	// create new user
 	newUser := User{
-		Id:       len(userData.Users) + 1,
-		Email:    email,
-		Password: hashedPassword,
+		Id:            len(userData.Users) + 1,
+		Email:         email,
+		Password:      hashedPassword,
+		Is_Chirpy_Red: false,
 	}
 	userData.Users[newUser.Id] = newUser
 	err = db.writeDB(userData)
@@ -48,8 +51,9 @@ func (db *DB) CreateUser(email string, password string) (PublicUser, error) {
 		return PublicUser{}, err
 	}
 	return PublicUser{
-		Id:    newUser.Id,
-		Email: newUser.Email,
+		Id:            newUser.Id,
+		Email:         newUser.Email,
+		Is_Chirpy_Red: newUser.Is_Chirpy_Red,
 	}, nil
 }
 
@@ -68,8 +72,9 @@ func (db *DB) UpdateUser(id int, email string, password string) (PublicUser, err
 	usersData.Users[id] = user
 	db.writeDB(usersData)
 	return PublicUser{
-		Id:    user.Id,
-		Email: user.Email,
+		Id:            user.Id,
+		Email:         user.Email,
+		Is_Chirpy_Red: user.Is_Chirpy_Red,
 	}, nil
 }
 
@@ -86,4 +91,19 @@ func (db *DB) GetUser(email string) (User, bool) {
 
 	}
 	return User{}, false
+}
+
+func (db *DB) UpgradeUser(user_id int) error {
+	data, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+	user, ok := data.Users[user_id]
+	if !ok {
+		return errors.New("user not found")
+	}
+	user.Is_Chirpy_Red = true
+	data.Users[user_id] = user
+	db.writeDB(data)
+	return nil
 }

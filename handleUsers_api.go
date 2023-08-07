@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -19,8 +20,16 @@ type RequestBody struct {
 type UserResponse struct {
 	Id            int    `json:"id"`
 	Email         string `json:"email"`
+	Is_Chirpy_Red bool   `json:"is_chirpy_red"`
 	Token         string `json:"token"`
 	Refresh_Token string `json:"refresh_token"`
+}
+
+type UpgradeUserJson struct {
+	Event string `json:"event"`
+	Data  struct {
+		UserID int `json:"user_id"`
+	} `json:"data"`
 }
 
 func createUser(db *database.DB) http.HandlerFunc {
@@ -76,7 +85,7 @@ func loginUser(db *database.DB) http.HandlerFunc {
 		}
 		userResponse.Token = access_token
 		userResponse.Refresh_Token = refresh_token
-
+		userResponse.Is_Chirpy_Red = user.Is_Chirpy_Red
 		setResponse(w, 200, userResponse)
 
 	}
@@ -134,5 +143,50 @@ func updateUser(db *database.DB) http.HandlerFunc {
 		}
 		setResponse(w, 200, user)
 
+	}
+}
+
+// get api key from header
+func getAPIKey(r *http.Request) (string, error) {
+	apiKey := r.Header.Get("Authorization")
+	if len(apiKey) == 0 {
+		return "", errors.New("please provide api key")
+	}
+	apiKey = strings.TrimSpace(strings.TrimPrefix(apiKey, "ApiKey"))
+	return apiKey, nil
+}
+
+func upgradeUser(db *database.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		apiKey, err := getAPIKey(r)
+
+		if err != nil {
+			respondWithError(w, 401, err.Error())
+			return
+		}
+		// apiKey value
+		polkaApiKey := os.Getenv("POLKA_API_KEY")
+		if apiKey != polkaApiKey {
+			respondWithError(w, 401, "Unauthorized")
+			return
+		}
+		decoder := json.NewDecoder(r.Body)
+		requestData := UpgradeUserJson{}
+		err = decoder.Decode(&requestData)
+		if err != nil {
+			respondWithError(w, 404, "Bad reqeuest")
+			return
+		}
+		if requestData.Event != "user.upgraded" {
+			setResponse(w, 200, nil)
+			return
+		}
+		user_id := requestData.Data.UserID
+		err = db.UpgradeUser(user_id)
+		if err != nil {
+			respondWithError(w, 404, err.Error())
+			return
+		}
+		setResponse(w, 200, nil)
 	}
 }
