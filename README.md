@@ -210,7 +210,27 @@ To set up the Chirpy Backend Go API in your local development environment, follo
     `200 ok `
     `response body: null`
 
-11. **Display Welcome** `GET /app`
+11. **Upgrade User tier** `POST /polka/webhooks`
+    Upgrades user to red(premium) tier. This request is made sample for intgration with stripe like api when payment is proccessed it sends a request with api key to upgrade user
+
+    `Authentication Required`
+    Request headers:`Authorization: ApiKey <APIKEY>`
+
+    Example Reqeust body:
+
+    ```json
+    {
+      "event": "user.upgraded",
+      "data": {
+        "user_id": 3
+      }
+    }
+    ```
+
+    Example Response:
+    `200 ok` or `404 not found`
+
+12. **Display Welcome** `GET /app`
     Displays a simple web page with welcome message
 
 ## Contributing
